@@ -1,0 +1,43 @@
+services:
+  db:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: brd_app
+      MONGO_INITDB_ROOT_PASSWORD: brd_app_pass
+      MONGO_INITDB_DATABASE: harshwal_brd
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./backend/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      MONGO_URI: mongodb://brd_app:brd_app_pass@db:27017/harshwal_brd?authSource=admin
+      MONGO_DB: harshwal_brd
+      JWT_SECRET: secret
+      FLASK_DEBUG: "1"
+      FRONTEND_ORIGIN: http://localhost:3000
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    environment:
+      VITE_API_BASE: http://localhost:5000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  mongodata:
